@@ -1,0 +1,162 @@
+#%RAML 1.0
+title: Knowledge base API
+version: v1
+types:
+  DocumentVersion:
+    type: object
+    description: Resource defining version of the document
+    properties:
+      hash: string
+      created:
+         type: datetime
+         example: Sun, 28 Feb 2016 16:41:41 GMT
+      updated:
+         type: datetime
+         example: Sun, 28 Feb 2016 16:41:41 GMT
+  DocumentVersionList:
+    type: object
+    description: Resource defining list of document versions
+    properties:
+      items:
+        type: array
+        items: DocumentVersion
+      items_total: integer
+  ErrorDescription:
+    description: Resource providing error description
+    type: object
+    properties:
+      error_description: string
+  PaginationLimit:
+    description: Specify the amount of items that will be retreived
+    type:        integer
+    minimum:     0
+    default:     200
+    maximum:     400
+    example:     30
+  PaginationOffset:
+    description: Specify the row from which items will be retreived
+    type:        integer
+    minimum:     0
+    default:     0
+    example:     10
+  Document:
+    type: object
+    description: Resource defining the document content
+    properties:
+      document_id: string
+      document_url: string
+      version: DocumentVersion
+      etag: string
+      elements:
+        type: array
+        items: DocumentElement
+  DocumentElement:
+    type: object
+    description: Resource defining the content of the document's element
+    properties:
+      type: string
+      text: string
+  DocumentsList:
+    type: object
+    description: Resource defining all documents stored in the knowledge base sorted alphabetically
+    properties:
+      items:
+        type: array
+        items: string
+/documents:
+  get:
+    description: Get all documents stored in the knowledge base
+    queryParameters:
+      limit:
+        type: PaginationLimit
+      offset:
+        type: PaginationOffset
+    responses:
+      200:
+        body:
+          application/json:
+            type: DocumentsList
+      422:
+        body:
+          application/json:
+            type: ErrorDescription
+/document:
+  post:
+    body:
+      application/json:
+        type: Document
+      responses:
+        201:
+          body:
+            application/json:
+              type: Document
+        422:
+          body:
+            application/json:
+          type: ErrorDescription
+  /{documentID}:
+    get:
+      description: Get specific document
+      queryParameters:
+        limit:
+          type: PaginationLimit
+        offset:
+          type: PaginationOffset
+      responses:
+        200:
+          body:
+            application/json:
+              type: DocumentVersionList
+        422:
+          body:
+            type: ErrorDescription
+        404:
+          description: The document that was requested was not found
+    delete:
+      description: Delete document with documentID from the knowledge base
+      responses:
+        204:
+          description: Resource deleted
+        422:
+          body:
+            type: ErrorDescription
+        404:
+          description: The document that was requested to delete was not found
+    /{versionHash}:
+      get:
+        description: Get specific version of the document
+        responses:
+          200:
+            body:
+              application/json:
+                type: Document
+          422:
+            body:
+              type: ErrorDescription
+          404:
+            description: The document that was requested was not found
+      delete:
+        description: Delete specific version of the document from the knowledge base
+        responses:
+          204:
+            description: Resource deleted
+          422:
+            body:
+              type: ErrorDescription
+          404:
+            description: The document that was requested to delete was not found
+      put:
+        description: Update specific version of the document from the knowledge base
+        headers:
+          if-match:
+            type: string
+            required: true
+        responses:
+          200:
+            description: Resource updated
+          422:
+            description: wrong paramters
+            body:
+              type: ErrorDescription
+          404:
+            description: The document that was requested to update was not found

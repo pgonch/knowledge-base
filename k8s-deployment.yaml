@@ -1,0 +1,44 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  annotations:
+    team: pgonch-hackaton
+  labels:
+    app: knowledge-base
+  name: knowledge-base
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: knowledge-base
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: knowledge-base
+    spec:
+      containers:
+      - env:
+        - name: mongo_HOST
+          value: mongo
+        image: docker.io/pgonch/knowledge-base:92ed511a2a5918364b49026934b7054b57c4a20e
+        imagePullPolicy: Always
+        name: knowledge-base
+        ports:
+        - containerPort: 5000
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 250m
+            memory: 64Mi
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30

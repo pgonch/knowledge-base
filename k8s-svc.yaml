@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    team: pgonch-hackaton
+  labels:
+    app: knowledge-base
+  name: knowledge-base
+  namespace: default
+spec:
+  ports:
+  - port: 5000
+    protocol: TCP
+    targetPort: 5000
+  selector:
+    app: knowledge-base
+  sessionAffinity: None
+  type: ClusterIP

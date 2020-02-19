@@ -1,10 +1,14 @@
 package util
 
 import (
-	"database/sql"
-	"fmt"
-	"time"
+	"crypto/md5"
 
+	"encoding/json"
+	"fmt"
+
+	"github.com/pkg/errors"
+
+	"github.com/pgonch/knowledge-base/types"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -30,58 +34,34 @@ const (
 	QueryWarningLimitSec = 1.0
 )
 
-// TimeCounter counts time spent on db interaction
-func TimeCounter(f func() string, warningLimit float64) {
-	qStart := time.Now()
-	query := f()
-	duration := time.Since(qStart).Seconds()
-	if duration > warningLimit {
-		log.Warnf("Query: %s; took %f seconds", query,
-			duration)
-	}
+// DBWrapper wrapper object to facilitate db interaction
+type DBWrapper struct {
+	Id string `bson:"_id"`
+	types.Document
 }
 
-// https://doxygen.postgresql.org/memutils_8h.html
-const maxPSQLQueryLength = 0x3fffffff
-
-// ArrayQuery returns query taking into account array size and operand
-func ArrayQuery(queryPrefix, queryPostfixTemplate, arrayColumnName string,
-	arraySize int, operand string, startInd, nPostFixParams int) (string, error) {
-	sqlQuery := queryPrefix
-	ind := startInd - 1
-	if arraySize > 0 {
-		sqlQuery += "AND ( "
-		for i := 0; i < arraySize; i++ {
-			ind++
-			sqlQuery += fmt.Sprintf("$%d = ANY(%s) ", ind, arrayColumnName)
-			if i != arraySize-1 {
-				sqlQuery += fmt.Sprintf("%s ", operand)
-			}
-		}
-		sqlQuery += " ) "
-	}
-	tmp := []interface{}{}
-	for i := 0; i < nPostFixParams; i++ {
-		ind++
-		tmp = append(tmp, ind)
-	}
-	sqlQuery += fmt.Sprintf("ORDER BY created ASC LIMIT $%d OFFSET $%d",
-		tmp...)
-
-	if len(sqlQuery) > maxPSQLQueryLength {
-		return "", fmt.Errorf("Too big query, specify smaller array length")
+// HashifyDocument returns document with filled hash related parameters
+func HashifyDocument(id string, doc types.Document,
+	created, updated int64) (*types.Document, error) {
+	doc.Document_id = id
+	b, err := json.Marshal(doc)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to marshall the document")
 	}
 
-	return sqlQuery, nil
-}
-
-// Close tries to close the rows and check the returned error
-func Close(rows *sql.Rows) {
-	if rows == nil {
-		return
+	h := md5.New()
+	if _, err := h.Write(b); err != nil {
+		return nil, errors.Wrap(err, "unable to write to hash")
 	}
 
-	if err := rows.Close(); err != nil {
-		log.Fatalf("Problem with closing rows: %v", err)
+	bs := h.Sum(nil)
+
+	doc.Etag = fmt.Sprintf("%x", bs)
+	doc.Version = types.DocumentVersion{
+		Created: created,
+		Updated: updated,
+		Hash:    doc.Etag,
 	}
+
+	return &doc, nil
 }

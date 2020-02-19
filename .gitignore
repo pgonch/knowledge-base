@@ -1,6 +1,6 @@
 bin
-types
-goraml
-*_if.go
+document_if.go
+documents_if.go
+goraml/
 routes.go
-apidocs
+types/

@@ -2,15 +2,19 @@
 package main
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/pgonch/knowledge-base/goraml"
+	"github.com/pgonch/knowledge-base/handlers/document"
+	"github.com/pgonch/knowledge-base/handlers/documents"
 	"github.com/pgonch/knowledge-base/util"
+
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/gorilla/mux"
 	"gopkg.in/validator.v2"
@@ -19,22 +23,15 @@ import (
 )
 
 var (
-	db *sql.DB
-
-	dbUser            = os.Getenv("POSTGRES_USER")
-	dbPassword        = os.Getenv("POSTGRES_PASSWORD")
-	dbHost            = os.Getenv("POSTGRES_HOST")
-	logLevel          = os.Getenv("LOG_LEVEL")
-	port              = os.Getenv("PORT")
-	maxRecordsInAPage = os.Getenv("MAX_RECORDS_IN_A_PAGE")
-
-	dsn = fmt.Sprintf("user=%s password=%s host=%s sslmode=disable", dbUser,
-		dbPassword, dbHost)
+	dbHost   = os.Getenv("MONGO_HOST")
+	logLevel = os.Getenv("LOG_LEVEL")
+	port     = os.Getenv("PORT")
 )
 
 const (
 	defaultPort     = "5000"
 	defaultLogLevel = "debug"
+	defaultDBHost   = "localhost"
 )
 
 func init() {
@@ -47,15 +44,8 @@ func init() {
 		logLevel = defaultLogLevel
 	}
 
-	if maxRecordsInAPage != "" {
-		tmp, err := strconv.ParseInt(maxRecordsInAPage, 10, 64)
-		if err != nil {
-			fmt.Println("not a valid MAX_RECORDS_IN_A_PAGE value: ",
-				maxRecordsInAPage)
-			os.Exit(1)
-		}
-		util.LimitMax = int(tmp)
-		util.LimitDefault = int(tmp)
+	if dbHost == "" {
+		dbHost = defaultDBHost
 	}
 
 	// log setup
@@ -67,16 +57,6 @@ func init() {
 	if err := util.ParseLogLevel(logLevel); err != nil {
 		fmt.Println("not a valid log level: ", logLevel)
 		os.Exit(1)
-	}
-
-	var err error
-	db, err = sql.Open("postgres", dsn)
-	if err != nil {
-		log.Fatalf("Could not open db: %v", err)
-	}
-
-	if err := db.Ping(); err != nil {
-		log.Fatalf("Probems with connecting to %s: %v", dsn, err)
 	}
 
 }
@@ -96,12 +76,37 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 
 func main() {
 
+	dbClient, err := mongo.NewClient(options.Client().ApplyURI(fmt.Sprintf("mongodb://%s:27017",
+		dbHost)))
+	if err != nil {
+		log.Fatalf("unable to create client: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	err = dbClient.Connect(ctx)
+	if err != nil {
+		log.Fatalf("unable to connect: %v", err)
+	}
+	defer func(ctx context.Context) {
+		if err := dbClient.Disconnect(ctx); err != nil {
+			log.Fatalf("unable to disconnect: %v", err)
+		}
+	}(ctx)
+
+	// could be as separate vars
+	db := dbClient.Database("knowledgebase")
+	dcts := db.Collection("documents")
+
 	// input validator
 	if err := validator.SetValidationFunc("multipleOf",
 		goraml.MultipleOf); err != nil {
 		log.Errorf("unable to set validation function: %v", err)
 		os.Exit(1)
 	}
+
+	documents.SetDB(dcts)
+	document.SetDB(dcts)
+	document.SetDBClient(dbClient)
 
 	r := mux.NewRouter()
 

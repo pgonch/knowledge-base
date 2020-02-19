@@ -8,11 +8,9 @@ types:
     properties:
       hash: string
       created:
-         type: datetime
-         example: Sun, 28 Feb 2016 16:41:41 GMT
+         type: int64
       updated:
-         type: datetime
-         example: Sun, 28 Feb 2016 16:41:41 GMT
+         type: int64
   DocumentVersionList:
     type: object
     description: Resource defining list of document versions
@@ -26,19 +24,6 @@ types:
     type: object
     properties:
       error_description: string
-  PaginationLimit:
-    description: Specify the amount of items that will be retreived
-    type:        integer
-    minimum:     0
-    default:     200
-    maximum:     400
-    example:     30
-  PaginationOffset:
-    description: Specify the row from which items will be retreived
-    type:        integer
-    minimum:     0
-    default:     0
-    example:     10
   Document:
     type: object
     description: Resource defining the document content
@@ -66,11 +51,6 @@ types:
 /documents:
   get:
     description: Get all documents stored in the knowledge base
-    queryParameters:
-      limit:
-        type: PaginationLimit
-      offset:
-        type: PaginationOffset
     responses:
       200:
         body:
@@ -97,11 +77,6 @@ types:
   /{documentID}:
     get:
       description: Get specific document
-      queryParameters:
-        limit:
-          type: PaginationLimit
-        offset:
-          type: PaginationOffset
       responses:
         200:
           body:
@@ -122,6 +97,18 @@ types:
             type: ErrorDescription
         404:
           description: The document that was requested to delete was not found
+    post:
+      description: Create specific version of the document from the knowledge base
+      responses:
+        201:
+          description: Resource created
+        422:
+          description: wrong paramters
+          body:
+            type: ErrorDescription
+        404:
+          description: The document that was requested to update was not found
+
     /{versionHash}:
       get:
         description: Get specific version of the document
@@ -147,10 +134,6 @@ types:
             description: The document that was requested to delete was not found
       put:
         description: Update specific version of the document from the knowledge base
-        headers:
-          if-match:
-            type: string
-            required: true
         responses:
           200:
             description: Resource updated

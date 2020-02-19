@@ -83,6 +83,32 @@ curl -X POST -d '{"document_id":"dummy","document_url":"super/resource","element
 {"document_id":"dummy","document_url":"super/resource","elements":[{"text":"super interesting text","type":"p"},{"text":"super interesting text2","type":"p"},{"text":"super interesting heading","type":"h1"}],"etag":"","version":{"created":0,"hash":"","updated":0}}
 ```
 
+## Implementation limitation
+
+- Assume that there is parser before knowledge-base
+- Assume that parer obeys the following model shown by example:
+
+```
+{
+  "document_id": "dummy",
+  "document_url": "super/resource",
+  "elements": [
+    {
+      "text": "super interesting text",
+      "type": "p"
+    },
+    {
+      "text": "super interesting text2",
+      "type": "p"
+    },
+    {
+      "text": "super interesting heading",
+      "type": "h1"
+    }
+  ]
+}
+```
+
 ## What could be done more
 
 - Indexing on the DB
@@ -93,3 +119,5 @@ curl -X POST -d '{"document_id":"dummy","document_url":"super/resource","element
 - Postman API templates  
 - GH actions CI
 - Dockerhub pushes
+- HTML to JSON parser
+- strict validation of the JSON content 

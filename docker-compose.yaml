@@ -1,0 +1,17 @@
+version: "3.7"
+services:
+ knowledge-base:
+    build:
+      context: .
+    environment:
+      - MONGO_HOST=${PSQL_HST:-mongo}
+      - LOG_LEVEL=${LOG_LVL:-debug}
+      - PORT=${PRT:-5000}
+    restart: unless-stopped
+    ports:
+      - 5000:${PRT:-5000}
+ mongo:
+    image: mongo
+    restart: always
+    ports:
+      - 27017:27017
